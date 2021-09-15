@@ -108,7 +108,16 @@ int main(int argc, char *argv[])
                             ros2_node, 
                             ros1_type_name, 
                             ros2_type_name, 
-                            "fw_gcs_data", 
+                            "/fw_gcs_data", 
+                            queue_size)});
+    
+    // Bridge for the ip list:
+    bridge_handle_dict.insert({"ip_list", ros1_bridge::create_bidirectional_bridge(
+                            ros1_node, 
+                            ros2_node, 
+                            ros1_type_name, 
+                            ros2_type_name, 
+                            "/ip_list", 
                             queue_size)});
     
     // ROS 1 asynchronous spinner
