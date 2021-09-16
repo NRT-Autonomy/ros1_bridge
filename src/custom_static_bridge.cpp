@@ -96,6 +96,8 @@ int main(int argc, char *argv[])
             {   
                 if (bridge_1_to_2_handle_dict.find(ip) == bridge_1_to_2_handle_dict.end())
                 {
+                    RCLCPP_INFO(rclcpp::get_logger("custom_static_bridge"), "I heard: my ip" );
+
                     std::string topic = ip + "/interplane_data";
                     bridge_1_to_2_handle_dict.insert({ip, 
                         ros1_bridge::create_bridge_from_1_to_2(
@@ -113,6 +115,8 @@ int main(int argc, char *argv[])
             }
             else
             {
+                RCLCPP_INFO(rclcpp::get_logger("custom_static_bridge"), "I heard: not my ip" );
+
                 if (bridge_2_to_1_handle_dict.find(ip) == bridge_2_to_1_handle_dict.end())
                 {
                     std::string topic = ip + "/interplane_data";
@@ -139,7 +143,10 @@ int main(int argc, char *argv[])
     // Bridge for the gcs data; check whether drone pi or GCS laptop
     if (current_ip ==  "gcs")
     {
-        auto fw_gcs = ros1_bridge::create_bridge_from_1_to_2(
+        RCLCPP_INFO(rclcpp::get_logger("custom_static_bridge"), "I heard: gcs");
+
+        bridge_1_to_2_handle_dict.insert({"gcs",
+        ros1_bridge::create_bridge_from_1_to_2(
                             ros1_node, 
                             ros2_node, 
                             ros1_type_name,
@@ -147,11 +154,14 @@ int main(int argc, char *argv[])
                             queue_size,
                             ros2_type_name, 
                             "/fw_gcs_data", 
-                            queue_size);
+                            queue_size)});
+
     }
     else
     {
-        auto fw_gcs = ros1_bridge::create_bridge_from_2_to_1(
+        RCLCPP_INFO(rclcpp::get_logger("custom_static_bridge"), "I heard: plane");
+        bridge_2_to_1_handle_dict.insert({"plane",
+        ros1_bridge::create_bridge_from_2_to_1(
                             ros2_node, 
                             ros1_node, 
                             ros2_type_name, 
@@ -159,12 +169,13 @@ int main(int argc, char *argv[])
                             queue_size, 
                             ros1_type_name,
                             "/fw_gcs_data", 
-                            queue_size);
+                            queue_size)});
     
     }
 
     // Bridge for the ip list:
-    auto ip_list = ros1_bridge::create_bridge_from_2_to_1(
+    bridge_2_to_1_handle_dict.insert({"ip_list",
+    ros1_bridge::create_bridge_from_2_to_1(
                             ros2_node, 
                             ros1_node, 
                             ros2_type_name, 
@@ -172,7 +183,7 @@ int main(int argc, char *argv[])
                             queue_size, 
                             ros1_type_name,
                             "/ip_list", 
-                            queue_size);
+                            queue_size)});
     
     // ROS 1 asynchronous spinner
     ros::AsyncSpinner async_spinner(1);
