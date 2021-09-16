@@ -24,12 +24,16 @@
 
 // include ROS 2
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp/logger.hpp"
+#include "rcutils/logging_macros.h"
 
 #include "ros1_bridge/bridge.hpp"
 
 // Global variable
 std::set<std::string> ip_set;
-std::map<std::string, ros1_bridge::BridgeHandles> bridge_handle_dict;
+std::map<std::string, ros1_bridge::Bridge1to2Handles> bridge_1_to_2_handle_dict;
+std::map<std::string, ros1_bridge::Bridge2to1Handles> bridge_2_to_1_handle_dict;
+std::string current_ip;
 
 // Callback function to parse the incoming IP list and store it in the global var ip_set
 void ip_list_callback(const std_msgs::msg::String::SharedPtr msg)
@@ -61,10 +65,13 @@ void ip_list_callback(const std_msgs::msg::String::SharedPtr msg)
 
 int main(int argc, char *argv[])
 {
+    RCLCPP_INFO(rclcpp::get_logger("custom_static_bridge"), "I heard: '%s'", argv[1]);
+    current_ip = argv[1];
+
     // ROS 1 node
     ros::init(argc, argv, "custom_static_bridge");
     ros::NodeHandle ros1_node;
-
+        
     // ROS 2 node
     rclcpp::init(argc, argv);
     auto ros2_node = rclcpp::Node::make_shared("custom_static_bridge");
@@ -75,7 +82,7 @@ int main(int argc, char *argv[])
 
     // IP list subscriber
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_ = 
-        ros2_node->create_subscription<std_msgs::msg::String>("/ip_list", 10, &ip_list_callback);
+        ros2_node->create_subscription<std_msgs::msg::String>("/ip_list", 1, &ip_list_callback);
 
     // Timer callback to check for new IPs periodically and add bridges:
     auto timer_callback = [
@@ -85,44 +92,92 @@ int main(int argc, char *argv[])
     {
         for (std::string ip : ip_set)
         {
-            if (bridge_handle_dict.find(ip) == bridge_handle_dict.end())
-            {
-                std::string topic = ip + "/interplane_data";
-                bridge_handle_dict.insert({ip, 
-                    ros1_bridge::create_bidirectional_bridge(
-                            ros1_node, 
-                            ros2_node, 
-                            ros1_type_name, 
-                            ros2_type_name, 
-                            topic, 
-                            queue_size)});
+            if (ip == current_ip)
+            {   
+                if (bridge_1_to_2_handle_dict.find(ip) == bridge_1_to_2_handle_dict.end())
+                {
+                    std::string topic = ip + "/interplane_data";
+                    bridge_1_to_2_handle_dict.insert({ip, 
+                        ros1_bridge::create_bridge_from_1_to_2(
+                                ros1_node, 
+                                ros2_node, 
+                                ros1_type_name, 
+                                topic, 
+                                queue_size, 
+                                ros2_type_name,
+                                topic, 
+                                queue_size)});
+
+                }
+
             }
+            else
+            {
+                if (bridge_2_to_1_handle_dict.find(ip) == bridge_2_to_1_handle_dict.end())
+                {
+                    std::string topic = ip + "/interplane_data";
+                    bridge_2_to_1_handle_dict.insert({ip, 
+                        ros1_bridge::create_bridge_from_2_to_1(
+                                ros2_node, 
+                                ros1_node, 
+                                ros2_type_name, 
+                                topic, 
+                                queue_size, 
+                                ros1_type_name,
+                                topic, 
+                                queue_size)});
+
+                }
+
+            }
+           
         }
     };
 
     rclcpp::TimerBase::SharedPtr timer_ = ros2_node->create_wall_timer(std::chrono::milliseconds(500), timer_callback);
 
-    // Bridge for the gcs data:
-    bridge_handle_dict.insert({"fw_gcs", ros1_bridge::create_bidirectional_bridge(
+    // Bridge for the gcs data; check whether drone pi or GCS laptop
+    if (current_ip ==  "gcs")
+    {
+        auto fw_gcs = ros1_bridge::create_bridge_from_1_to_2(
                             ros1_node, 
                             ros2_node, 
-                            ros1_type_name, 
+                            ros1_type_name,
+                            "/fw_gcs_data",
+                            queue_size,
                             ros2_type_name, 
                             "/fw_gcs_data", 
-                            queue_size)});
-    
-    // Bridge for the ip list:
-    bridge_handle_dict.insert({"ip_list", ros1_bridge::create_bidirectional_bridge(
-                            ros1_node, 
+                            queue_size);
+    }
+    else
+    {
+        auto fw_gcs = ros1_bridge::create_bridge_from_2_to_1(
                             ros2_node, 
-                            ros1_type_name, 
+                            ros1_node, 
+                            ros2_type_name, 
+                            "/fw_gcs_data", 
+                            queue_size, 
+                            ros1_type_name,
+                            "/fw_gcs_data", 
+                            queue_size);
+    
+    }
+
+    // Bridge for the ip list:
+    auto ip_list = ros1_bridge::create_bridge_from_2_to_1(
+                            ros2_node, 
+                            ros1_node, 
                             ros2_type_name, 
                             "/ip_list", 
-                            queue_size)});
+                            queue_size, 
+                            ros1_type_name,
+                            "/ip_list", 
+                            queue_size);
     
     // ROS 1 asynchronous spinner
     ros::AsyncSpinner async_spinner(1);
     async_spinner.start();
+
 
     // ROS 2 spinning loop
     rclcpp::executors::SingleThreadedExecutor executor;
