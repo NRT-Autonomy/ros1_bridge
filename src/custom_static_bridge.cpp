@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
     auto ros2_node = rclcpp::Node::make_shared("custom_static_bridge");
 
 	// ROS 1 node
-    ros::init(argc, argv, "custom_static_bridge");
+    ros::init(argc, argv, "custom_static_bridge", ros::init_options::AnonymousName);
     ros::NodeHandle ros1_node;
 
     std::string ros1_type_name = "std_msgs/String";
