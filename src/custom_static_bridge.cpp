@@ -68,13 +68,13 @@ int main(int argc, char *argv[])
     // RCLCPP_INFO(rclcpp::get_logger("custom_static_bridge"), "I heard: '%s'", argv[1]);
     current_ip = argv[1];
 
-    // ROS 1 node
-    ros::init(argc, argv, "custom_static_bridge");
-    ros::NodeHandle ros1_node;
-        
     // ROS 2 node
     rclcpp::init(argc, argv);
     auto ros2_node = rclcpp::Node::make_shared("custom_static_bridge");
+
+	// ROS 1 node
+    ros::init(argc, argv, "custom_static_bridge");
+    ros::NodeHandle ros1_node;
 
     std::string ros1_type_name = "std_msgs/String";
     std::string ros2_type_name = "std_msgs/msg/String";
