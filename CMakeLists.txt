@@ -205,6 +205,13 @@ custom_executable(custom_static_bridge
 target_link_libraries(custom_static_bridge
   ${PROJECT_NAME})
 
+custom_executable(custom_static_bridge_multi_machine
+  "src/custom_static_bridge_multi_machine.cpp"
+  ROS1_DEPENDENCIES
+  TARGET_DEPENDENCIES ${ros2_interface_packages})
+target_link_libraries(custom_static_bridge_multi_machine
+  ${PROJECT_NAME})
+
 custom_executable(parameter_bridge
   "src/parameter_bridge.cpp"
   ROS1_DEPENDENCIES
